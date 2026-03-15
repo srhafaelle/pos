@@ -1,0 +1,19 @@
+services:
+  backend:
+    build: .
+    container_name: pos
+    restart: always
+    ports:
+      - "8067:8067"
+    environment:
+      # Borramos las variables sueltas y usamos la URI mágica.
+      # Usamos 'mongodbsifcon' y '27017' para que viaje por la red interna segura.
+      - SPRING_DATA_MONGODB_URI=mongodb://cvmdbs:JDDok45h674830hfusORtwWW4fdf65B@mongodbsifcon:27017/mineria_db?authSource=admin
+    networks:
+      - mi_red_pos
+
+# Le decimos a este docker-compose que se conecte a la red que ya creaste con tu otra API
+networks:
+  mi_red_pos:
+    external: true
+    name: deploycvmsifcon_cvm-network
