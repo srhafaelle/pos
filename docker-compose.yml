@@ -9,6 +9,7 @@ services:
       # Borramos las variables sueltas y usamos la URI mágica.
       # Usamos 'mongodbsifcon' y '27017' para que viaje por la red interna segura.
       - SPRING_DATA_MONGODB_URI=mongodb://cvmdbs:JDDok45h674830hfusORtwWW4fdf65B@mongodbsifcon:27017/mineria_db?authSource=admin
+      - TZ=America/Caracas
     networks:
       - mi_red_pos
 

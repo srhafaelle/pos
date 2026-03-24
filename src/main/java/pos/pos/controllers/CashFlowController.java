@@ -80,6 +80,29 @@ public class CashFlowController {
                 }
             }
 
+
+            // Buscar Compras de Oro (Afecta la moneda pagada y el saldo de oro)
+            List<GoldPurchase> goldPurchases = goldRepo.findByTimestampBetween(start, end);
+            for (GoldPurchase gp : goldPurchases) {
+                // Si estamos viendo el historial de la moneda con la que pagamos (Ej. salieron USD)
+                if (currency.equals(gp.getCurrencyPaid())) {
+                    MovementDTO m = new MovementDTO();
+                    m.setType("OUT");
+                    m.setAmount(gp.getAmountPaid());
+                    m.setDescription("Compra de " + gp.getGrams() + "g de Oro");
+                    m.setDate(gp.getTimestamp());
+                    movements.add(m);
+                }
+                // Si estamos viendo el historial del Oro (Entraron gramos)
+                if (currency.equals("GOLD")) {
+                    MovementDTO m = new MovementDTO();
+                    m.setType("IN");
+                    m.setAmount(gp.getGrams());
+                    m.setDescription("Compra pagada con " + gp.getCurrencyPaid());
+                    m.setDate(gp.getTimestamp());
+                    movements.add(m);
+                }
+            }
             // Buscar Gastos (OUT)
             List<Expense> expenses = expenseRepo.findByCurrencyTypeAndTimestampBetween(currency, start, end);
             for (Expense e : expenses) {

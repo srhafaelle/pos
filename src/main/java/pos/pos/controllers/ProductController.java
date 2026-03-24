@@ -30,8 +30,16 @@ public class ProductController {
     }
 
     @PostMapping
-    public Product saveProduct(@RequestBody Product product) {
-        return productService.saveProduct(product);
+    public ResponseEntity<?> saveProduct(@RequestBody Product product) {
+        try{
+            return  ResponseEntity.ok(productService.saveProduct(product));
+        }catch (RuntimeException e){
+
+            return  ResponseEntity.badRequest().body(e.getMessage());
+        }catch (Exception e) {
+        return ResponseEntity.internalServerError().body("Error interno del servidor");
+    }
+
     }
 
     @DeleteMapping("/{id}")

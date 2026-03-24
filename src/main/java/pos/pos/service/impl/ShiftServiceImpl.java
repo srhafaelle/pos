@@ -4,6 +4,7 @@ package pos.pos.service.impl;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import pos.pos.entities.GoldPurchase;
 import pos.pos.entities.Sale;
 import pos.pos.entities.Shift;
 import pos.pos.repository.ExpenseRepository;
@@ -13,7 +14,10 @@ import pos.pos.repository.ShiftRepository;
 import pos.pos.service.ShiftService;
 import pos.pos.service.TreasuryService;
 
+import java.time.Instant;
 import java.time.LocalDateTime;
+import java.time.ZoneId;
+import java.time.ZoneOffset;
 import java.util.List;
 
 @Service
@@ -39,7 +43,7 @@ public class ShiftServiceImpl implements ShiftService {
         shift.setCashierId(cashierId);
         shift.setCashierName(cashierName);
         shift.setActive(true);
-        shift.setStartTime(LocalDateTime.now());
+        shift.setStartTime(LocalDateTime.now(ZoneOffset.ofHours(-4)));
         shift.setStartUsd(startUsd != null ? startUsd : 0.0);
         shift.setStartBsCash(startBs != null ? startBs : 0.0);
         shift.setStartBsDigital( startBsDigital != null ? startBsDigital : 0.0);
@@ -51,79 +55,30 @@ public class ShiftServiceImpl implements ShiftService {
 
 
     @Override
-
     public Shift closeShift(String shiftId, Double declaredUsd, Double declaredBsCash, Double declaredBsDigital, Double declaredGold, String comment) {
         Shift shift = shiftRepo.findById(shiftId)
                 .orElseThrow(() -> new RuntimeException("Turno no encontrado"));
         if (!shift.isActive()) {
             throw new RuntimeException("El turno ya está cerrado.");
         }
-        LocalDateTime now = LocalDateTime.now();
+
+        // Usamos la zona horaria correcta de Caracas uniformemente
+        LocalDateTime now = LocalDateTime.now(ZoneId.of("America/Caracas"));
         shift.setEndTime(now);
         shift.setActive(false);
 
-// 1. Guardar lo que contó el cajero
+        // 1. Guardar lo que contó el cajero físicamente
         shift.setDeclaredUsd(declaredUsd);
         shift.setDeclaredBsCash(declaredBsCash);
         shift.setDeclaredBsDigital(declaredBsDigital);
         shift.setDeclaredGold(declaredGold);
         shift.setCloseComment(comment);
-// 2. CALCULAR LO ESPERADO (MATEMÁTICA DEL SISTEMA)
-// A. Inicio
 
-        double sysUsd = shift.getStartUsd();
-        double sysBsCash = shift.getStartBsCash();
-        double sysBsDigital = 0.0; // Siempre inicia en 0 relativo al turno
-        double sysGold = shift.getStartGold();
+        // 2. CALCULAR LO ESPERADO (Este método ahora hace todo: Ventas + Oro)
+        calcularEsperadosAlVuelo(shift, now);
 
-// B. Sumar Ventas (INGRESOS)
-
-        List<Sale> sales = saleRepo.findByCashierIdAndTimestampBetween(shift.getCashierId(), shift.getStartTime(), now);
-        for (Sale s : sales) {
-            if (s.getPayment() != null) {
-                sysUsd += s.getPayment().getAmountUsd();
-                sysBsCash += s.getPayment().getAmountBsCash();
-                sysBsDigital += s.getPayment().getAmountBsDigital();
-                sysGold += s.getPayment().getAmountGoldGrams();
-            }
-        }
-
-        /* logica migrare a la caja principal tesoreria por tema de gastos el turno no maneja ningun tipo de gastos
-// C. Restar Gastos (EGRESOS)
-
-        List<Expense> expenses = expenseRepo.findByTimestampBetween(shift.getStartTime(), now);
-        for (Expense e : expenses) {
-            switch (e.getCurrencyType()) { // Asegúrate que en Expense sea currencyType
-                case "USD": sysUsd -= e.getAmount(); break;
-                case "BS_CASH": sysBsCash -= e.getAmount(); break;
-                case "BS_DIGITAL": sysBsDigital -= e.getAmount(); break;
-                case "GOLD": sysGold -= e.getAmount(); break;
-
-            }
-
-        }
-
-// D. Procesar Compra de Oro (SALE DINERO, ENTRA ORO)
-        List<GoldPurchase> goldBuys = goldRepo.findByTimestampBetween(shift.getStartTime(), now);
-        for (GoldPurchase gp : goldBuys) {
-// Entra Oro
-            sysGold += gp.getGrams();
-
-// Sale Dinero
-            switch (gp.getCurrencyPaid()) {
-                case "USD": sysUsd -= gp.getAmountPaid(); break;
-                case "BS_CASH": sysBsCash -= gp.getAmountPaid(); break;
-                case "BS_DIGITAL": sysBsDigital -= gp.getAmountPaid(); break;
-            }
-        }
-
-// 3. Guardar Esperados (Evitar negativos visuales)
-        shift.setExpectedAmountUsd(Math.max(0, sysUsd));
-        shift.setExpectedBsCash(Math.max(0, sysBsCash));
-        shift.setExpectedBsDigital(Math.max(0, sysBsDigital));
-        shift.setExpectedAmountGold(Math.max(0, sysGold));
-*/
-       treasuryService.addIncomeFromShift(
+        // 3. Enviar a tesorería los montos declarados
+        treasuryService.addIncomeFromShift(
                 declaredUsd,
                 declaredBsCash,
                 declaredBsDigital,
@@ -131,7 +86,6 @@ public class ShiftServiceImpl implements ShiftService {
         );
 
         return shiftRepo.save(shift);
-
     }
 
   @Override
@@ -161,8 +115,56 @@ public class ShiftServiceImpl implements ShiftService {
 
     @Override
     public Shift getActiveShift(String cashierId) {
-        return shiftRepo.findByCashierIdAndActiveTrue(cashierId).orElse(null);
+        Shift shift = shiftRepo.findByCashierIdAndActiveTrue(cashierId).orElse(null);
 
+        if (shift != null) {
+            // Calculamos la matemática del sistema al vuelo para que Flutter la muestre
+            calcularEsperadosAlVuelo(shift, LocalDateTime.now(ZoneId.of("America/Caracas")));
+        }
+
+        return shift;
+
+    }
+
+    private void calcularEsperadosAlVuelo(Shift shift, LocalDateTime endTime) {
+        // A. Inicio
+        double sysUsd = shift.getStartUsd() != null ? shift.getStartUsd() : 0.0;
+        double sysBsCash = shift.getStartBsCash() != null ? shift.getStartBsCash() : 0.0;
+        double sysBsDigital = shift.getStartBsDigital() != null ? shift.getStartBsDigital() : 0.0;
+        double sysGold = shift.getStartGold() != null ? shift.getStartGold() : 0.0;
+
+        // B. Sumar Ventas
+        List<Sale> sales = saleRepo.findByCashierIdAndTimestampBetween(shift.getCashierId(), shift.getStartTime(), endTime);
+        for (Sale s : sales) {
+            if (s.getPayment() != null) {
+                sysUsd += s.getPayment().getAmountUsd() != null ? s.getPayment().getAmountUsd() : 0.0;
+                sysBsCash += s.getPayment().getAmountBsCash() != null ? s.getPayment().getAmountBsCash() : 0.0;
+                sysBsDigital += s.getPayment().getAmountBsDigital() != null ? s.getPayment().getAmountBsDigital() : 0.0;
+                sysGold += s.getPayment().getAmountGoldGrams() != null ? s.getPayment().getAmountGoldGrams() : 0.0;
+            }
+        }
+
+        // C. Procesar Compras de Oro (Sale Dinero, Entra Oro)
+        List<GoldPurchase> goldBuys = goldRepo.findByTimestampBetween(shift.getStartTime(), endTime);
+        for (GoldPurchase gp : goldBuys) {
+            // Entra Oro
+            sysGold += gp.getGrams();
+
+            // Sale Dinero
+            if ("USD".equals(gp.getCurrencyPaid())) {
+                sysUsd -= gp.getAmountPaid();
+            } else if ("BS_CASH".equals(gp.getCurrencyPaid())) {
+                sysBsCash -= gp.getAmountPaid();
+            } else if ("BS_DIGITAL".equals(gp.getCurrencyPaid())) {
+                sysBsDigital -= gp.getAmountPaid();
+            }
+        }
+
+        // Asignamos los resultados
+        shift.setExpectedAmountUsd(sysUsd);
+        shift.setExpectedBsCash(sysBsCash);
+        shift.setExpectedBsDigital(sysBsDigital);
+        shift.setExpectedAmountGold(sysGold);
     }
 
 }
