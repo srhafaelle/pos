@@ -7,6 +7,7 @@ import java.util.List;
 public class SaleRequest {
     private String cashierId;
     private String clientId;
+    private String idVenta;
     private List<ItemRequest> items;
 
 

@@ -11,3 +11,9 @@ public class PosApplication {
 	}
 
 }
+
+
+
+/*
+ SHA256:7XmzpxOxso/m+sU/XR8JE8THgj+G3TGsYeZSL7YSGFU.
+ */

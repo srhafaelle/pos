@@ -14,6 +14,7 @@ import pos.pos.repository.ProductRepository;
 import pos.pos.repository.SaleRepository;
 import pos.pos.service.SaleService;
 import pos.pos.service.ShiftService;
+import java.util.UUID;
 
 import java.time.LocalDateTime;
 import java.util.ArrayList;
@@ -41,6 +42,7 @@ public class SaleServiceImpl implements SaleService {
         Sale sale = new Sale();
         sale.setCashierId(request.getCashierId());
         sale.setClientId(request.getClientId());
+        sale.setIdVenta(UUID.randomUUID().toString().substring(0,6));  // cambio del id compilara con error corregir
         sale.setTimestamp(LocalDateTime.now());
         sale.setItems(new ArrayList<>());
 

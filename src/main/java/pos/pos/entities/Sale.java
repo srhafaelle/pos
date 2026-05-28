@@ -2,6 +2,7 @@ package pos.pos.entities;
 
 import lombok.Data;
 import org.springframework.data.annotation.Id;
+import org.springframework.data.mongodb.core.index.IndexOptions;
 import org.springframework.data.mongodb.core.mapping.Document;
 
 import java.time.LocalDateTime;
@@ -14,6 +15,7 @@ public class Sale {
     private String id;
     private LocalDateTime timestamp;
     private String cashierId; // Corregido: antes decía userId, ahora coincide con el Service
+    private String idVenta;
 
     private List<SaleItem> items; // Lista de items vendidos (Snapshot)
 
