@@ -42,7 +42,7 @@ public class SaleServiceImpl implements SaleService {
         Sale sale = new Sale();
         sale.setCashierId(request.getCashierId());
         sale.setClientId(request.getClientId());
-        sale.setIdVenta(UUID.randomUUID().toString().substring(0,6));  // cambio del id compilara con error corregir
+        sale.setIdVenta(UUID.randomUUID().toString().substring(0,6));  // sin error
         sale.setTimestamp(LocalDateTime.now());
         sale.setItems(new ArrayList<>());
 

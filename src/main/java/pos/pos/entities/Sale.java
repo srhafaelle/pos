@@ -15,7 +15,7 @@ public class Sale {
     private String id;
     private LocalDateTime timestamp;
     private String cashierId; // Corregido: antes decía userId, ahora coincide con el Service
-    private String idVenta;
+    private String idVenta; //venta id
 
     private List<SaleItem> items; // Lista de items vendidos (Snapshot)
 
