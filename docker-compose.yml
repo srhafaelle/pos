@@ -1,20 +1,47 @@
 services:
   backend:
     build: .
-    container_name: pos
-    restart: always
     ports:
-      - "8067:8067"
+      - "8036:8036"
     environment:
-      # Borramos las variables sueltas y usamos la URI mágica.
-      # Usamos 'mongodbsifcon' y '27017' para que viaje por la red interna segura.
-      - SPRING_DATA_MONGODB_URI=mongodb://cvmdbs:JDDok45h674830hfusORtwWW4fdf65B@mongodbsifcon:27017/mineria_db?authSource=admin
-      - TZ=America/Caracas
+      # CORREGIDO: usa 'mongo' en lugar de 'localhost'
+      - CONNECTION_DB=mongodb://posdbs:JDDok45h674830hfusORtwWW4fdf65B@mongo:27>
+      # Añade también estas variables según el framework que uses
+      - SPRING_DATA_MONGODB_URI=mongodb://posdbs:JDDok45h674830hfusORtwWW4fdf65>
+      - SPRING_DATA_MONGODB_HOST=mongo
+      - SPRING_DATA_MONGODB_PORT=27017
+      - DB_HOST=mongo
+      - DB_PORT=27017
+    depends_on:
+      - mongo
     networks:
-      - mi_red_pos
+      - pos-network
 
-# Le decimos a este docker-compose que se conecte a la red que ya creaste con tu otra API
+  mongo:
+    image: mongo:latest
+    container_name: mongopos
+    ports:
+      - "12876:27017"
+    environment:
+      - MONGO_INITDB_ROOT_USERNAME=posdbs
+      - MONGO_INITDB_ROOT_PASSWORD=JDDok45h674830hfusORtwWW4fdf65B
+      - TZ=America/Caracas
+    volumes:
+      - mongo-data:/data/db
+      - mongo-config:/data/configdb
+    networks:
+      - pos-network
+    # Añade healthcheck para asegurar que mongo está listo
+    healthcheck:
+      test: [ "CMD", "mongosh", "--eval", "db.adminCommand('ping')", "--username", "posdbs", "--password", "JDDok45h674830hfusORtwWW4fdf65B"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  mongo-data:
+  mongo-config:
+
 networks:
-  mi_red_pos:
-    external: true
-    name: deploycvmsifcon_cvm-network
+  pos-network:
+    driver: bridge
