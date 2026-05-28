@@ -4,16 +4,18 @@ services:
     ports:
       - "8036:8036"
     environment:
-      # CORREGIDO: usa 'mongo' en lugar de 'localhost'
-      - CONNECTION_DB=mongodb://posdbs:JDDok45h674830hfusORtwWW4fdf65B@mongo:27>
-      # Añade también estas variables según el framework que uses
-      - SPRING_DATA_MONGODB_URI=mongodb://posdbs:JDDok45h674830hfusORtwWW4fdf65>
+      # Conexión a MongoDB usando el nombre del servicio 'mongo'
+      - CONNECTION_DB=mongodb://posdbs:JDDok45h674830hfusORtwWW4fdf65B@mongo:27017/posdb?authSource=admin
+      - SPRING_DATA_MONGODB_URI=mongodb://posdbs:JDDok45h674830hfusORtwWW4fdf65B@mongo:27017/posdb?authSource=admin
       - SPRING_DATA_MONGODB_HOST=mongo
       - SPRING_DATA_MONGODB_PORT=27017
       - DB_HOST=mongo
       - DB_PORT=27017
+      - DB_NAME=posdb
+      - TZ=America/Caracas
     depends_on:
-      - mongo
+      mongo:
+        condition: service_healthy   # espera a que mongo esté sano
     networks:
       - pos-network
 
@@ -25,18 +27,19 @@ services:
     environment:
       - MONGO_INITDB_ROOT_USERNAME=posdbs
       - MONGO_INITDB_ROOT_PASSWORD=JDDok45h674830hfusORtwWW4fdf65B
+      - MONGO_INITDB_DATABASE=posdb   # opcional: crea la base de datos al inicio
       - TZ=America/Caracas
     volumes:
       - mongo-data:/data/db
       - mongo-config:/data/configdb
     networks:
       - pos-network
-    # Añade healthcheck para asegurar que mongo está listo
     healthcheck:
-      test: [ "CMD", "mongosh", "--eval", "db.adminCommand('ping')", "--username", "posdbs", "--password", "JDDok45h674830hfusORtwWW4fdf65B"]
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')", "--username", "posdbs", "--password", "JDDok45h674830hfusORtwWW4fdf65B"]
       interval: 10s
       timeout: 5s
       retries: 5
+      start_period: 10s
 
 volumes:
   mongo-data:
