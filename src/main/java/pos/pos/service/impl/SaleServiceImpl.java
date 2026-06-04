@@ -41,6 +41,7 @@ public class SaleServiceImpl implements SaleService {
         // 2. Crear Objeto Venta
         Sale sale = new Sale();
         sale.setCashierId(request.getCashierId());
+        sale.setShiftId(activeShift.getId());
         sale.setClientId(request.getClientId());
         sale.setIdVenta(UUID.randomUUID().toString().substring(0,6));  // sin error
         sale.setTimestamp(LocalDateTime.now());
@@ -83,6 +84,7 @@ public class SaleServiceImpl implements SaleService {
             saleItem.setQuantity(itemReq.getQuantity());
             saleItem.setUnitPrice(itemReq.getPriceUsed());
             saleItem.setSubTotal(itemReq.getPriceUsed() * itemReq.getQuantity());
+            saleItem.setPresentationName(nombrePresentacion);
 
             sale.getItems().add(saleItem);
             totalSaleAmount += saleItem.getSubTotal();
@@ -105,10 +107,63 @@ public class SaleServiceImpl implements SaleService {
 
         Sale savedSale = saleRepo.save(sale);
 
-
         shiftService.cajaDeTurno(activeShift.getId(), request.getAmountPaidUsd(), request.getAmountPaidBsCash(), request.getAmountPaidBsDigital(), request.getAmountPaidGold());
-        System.out.println(sale.getDiscount());
+
         return savedSale;
+    }
+
+    // ==========================================
+    // NUEVA LÓGICA DE ANULACIÓN BLINDADA
+    // ==========================================
+    @Override
+    @Transactional
+    public Sale cancelSale(String saleId) {
+        Sale sale = saleRepo.findById(saleId)
+                .orElseThrow(() -> new RuntimeException("Venta no encontrada"));
+
+        if ("CANCELLED".equals(sale.getStatus())) {
+            throw new RuntimeException("La venta ya estaba anulada");
+        }
+
+        // 1. Cambiar estado
+        sale.setStatus("CANCELLED");
+
+        // 2. Devolver el Stock (Calculando si fueron Cajas o Unidades sueltas)
+        for (Sale.SaleItem item : sale.getItems()) {
+            productRepo.findById(item.getProductId()).ifPresent(product -> {
+                int factorToReturn = 1;
+
+                if (item.getPresentationName() != null && product.getPresentations() != null) {
+                    for (Product.ProductPresentation p : product.getPresentations()) {
+                        if (p.getName().equalsIgnoreCase(item.getPresentationName())) {
+                            factorToReturn = p.getFactor();
+                            break;
+                        }
+                    }
+                }
+
+                // Si compró 2 cajas de 24, devuelve 48 al stock base.
+                int totalUnitsToReturn = item.getQuantity() * factorToReturn;
+                product.setStock(product.getStock() + totalUnitsToReturn);
+                productRepo.save(product);
+            });
+        }
+
+        // 3. Restar el dinero de la caja del turno EXACTO donde se hizo la venta
+        if (sale.getShiftId() != null) {
+            Sale.PaymentDetail p = sale.getPayment();
+
+            // Reutilizamos tu método cajaDeTurno, pero enviándole montos NEGATIVOS para que reste
+            shiftService.cajaDeTurno(
+                    sale.getShiftId(),
+                    -(p.getAmountUsd() != null ? p.getAmountUsd() : 0.0),
+                    -(p.getAmountBsCash() != null ? p.getAmountBsCash() : 0.0),
+                    -(p.getAmountBsDigital() != null ? p.getAmountBsDigital() : 0.0),
+                    -(p.getAmountGoldGrams() != null ? p.getAmountGoldGrams() : 0.0)
+            );
+        }
+
+        return saleRepo.save(sale);
     }
 
     private String determineMainMethod(Sale.PaymentDetail p) {

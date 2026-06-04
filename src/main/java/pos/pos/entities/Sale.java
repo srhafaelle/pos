@@ -14,7 +14,8 @@ public class Sale {
     @Id
     private String id;
     private LocalDateTime timestamp;
-    private String cashierId; // Corregido: antes decía userId, ahora coincide con el Service
+    private String cashierId;
+    private String shiftId;   // aqui manejo el turno del id
     private String idVenta; //venta id
 
     private List<SaleItem> items; // Lista de items vendidos (Snapshot)
@@ -39,6 +40,7 @@ public class Sale {
         private Integer quantity;
         private Double unitPrice; // Precio al momento de la venta
         private Double subTotal;
+        private String presentationName;
 
     }
 

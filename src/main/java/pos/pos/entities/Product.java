@@ -32,6 +32,10 @@ public class Product {
     private String imageBase64; // foto ccodificada del producto
     private String imageUrl;
 
+    //agrego un proveedor para saber quien lo distribuye   para la parte del administrador
+    private Supplier supplier;
+
+
     @Data
     public static class ProductPresentation {
         private String name;    // Ej: "Caja (36u)" o "Gruesa (10 paq)"

@@ -46,32 +46,15 @@ public class SaleController {
     }
     @PostMapping("/{id}/cancel")
     public ResponseEntity<?> cancelSale(@PathVariable String id) {
-        return saleRepo.findById(id).map(sale -> {
-            if ("CANCELLED".equals(sale.getStatus())) {
-                return ResponseEntity.badRequest().body("La venta ya estaba anulada");
-            }
-
-            // 1. Marcar como anulada
-            sale.setStatus("CANCELLED");
-            saleRepo.save(sale);
-
-            // 2. Devolver Stock (Iterar items)
-            for (Sale.SaleItem item : sale.getItems()) {
-                productRepo.findById(item.getProductId()).ifPresent(product -> {
-                    product.setStock(product.getStock() + item.getQuantity());
-                    productRepo.save(product);
-                });
-            }
-
-            // 3. Si fue a crédito, devolver la deuda al cliente
-            if (sale.getClientId() != null) {
-                // Lógica simple: Si se anuló, se asume que se reversa la deuda generada
-                // Esto requeriría saber cuánto fue crédito exacto, por ahora simplificamos:
-                // Si tienes lógica de crédito implementada, aquí restarías la deuda.
-            }
-
-            return ResponseEntity.ok("Venta anulada y stock restaurado");
-        }).orElse(ResponseEntity.notFound().build());
+        try {
+            // Llamamos a nuestro nuevo servicio de anulación
+            saleService.cancelSale(id);
+            return ResponseEntity.ok("Venta anulada con éxito. Stock y dinero devueltos.");
+        } catch (RuntimeException e) {
+            return ResponseEntity.badRequest().body(e.getMessage());
+        } catch (Exception e) {
+            return ResponseEntity.internalServerError().body("Error interno al anular: " + e.getMessage());
+        }
     }
 
     @GetMapping("/shift/{shiftId}")

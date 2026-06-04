@@ -5,7 +5,7 @@ services:
       - "8036:8036"
     environment:
       # Conexión a MongoDB usando el nombre del servicio 'mongo'
-      - CONNECTION_DB=mongodb://posdbs:JDDok45h674830hfusORtwWW4fdf65B@mongo:27017/posdb?authSource=admin
+      - CONNECTION_DB=mongodb://posdbs:JDDok45h674830hfusORtwWW4fdf65B@mongo:27017/posdbs-?authSource=admin
       - SPRING_DATA_MONGODB_URI=mongodb://posdbs:JDDok45h674830hfusORtwWW4fdf65B@mongo:27017/posdb?authSource=admin
       - SPRING_DATA_MONGODB_HOST=mongo
       - SPRING_DATA_MONGODB_PORT=27017

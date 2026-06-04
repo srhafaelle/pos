@@ -118,6 +118,7 @@ public class ProductServiceImpl implements ProductService {
                         .oldPrice(oldPrice)
                         .newPrice(savedProduct.getPriceRetail());
 
+
                 stockMovementService.createMovement(movementBuilder.build());
             }
             return savedProduct;

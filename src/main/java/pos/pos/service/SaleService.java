@@ -6,4 +6,5 @@ import pos.pos.entities.Sale;
 
 public interface SaleService {
     Sale processSale(SaleRequest request);
+    Sale cancelSale(String saleId);
 }
